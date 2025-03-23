@@ -4,6 +4,6 @@ WORKDIR /app
 
 COPY consumer.py .
 
-RUN pip install confluent-kafka hdfs
+RUN pip install confluent-kafka hdfs datetime
 
 CMD ["python", "consumer.py"]

@@ -34,10 +34,12 @@ def fetch_air_quality_data():
 
 # Envoi des données à Kafka
 def send_to_kafka(topic, data):
+    i=1
     for record in data:
         try:
             # Envoie chaque enregistrement dans le topic Kafka
-            producer.produce(topic, key=str(record.get("location", "unknown")), value=json.dumps(record), callback=delivery_report)
+            producer.produce(topic, key=f"sensor_3917_data_{i}", value=json.dumps(record), callback=delivery_report)
+            i+=1
         except Exception as e:
             print(f"Erreur lors de l'envoi à Kafka : {e}")
     producer.flush()  # Assure que tous les messages sont envoyés

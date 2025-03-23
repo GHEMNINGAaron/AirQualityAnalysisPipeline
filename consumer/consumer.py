@@ -1,6 +1,7 @@
 import json
 from confluent_kafka import Consumer, KafkaError
 import time
+from hdfs import InsecureClient
 
 # Configuration du consumer Kafka
 conf = {
@@ -18,39 +19,87 @@ consumer.subscribe([topic])
 
 print(f"En écoute sur le topic '{topic}'...")
 
+all_data = []
+
+# Configuration HDFS
+hdfs_client = InsecureClient('http://hadoop-namenode:9870', user='root')
+
 try:
+    # Boucle infinie de consommation Kafka
     while True:
-        msg = consumer.poll(1.0)  # Attend 1 seconde un message
+        msg = consumer.poll(10.0)  # Attend jusqu'à 10 secondes un message
 
         if msg is None:
-            continue  # Pas de message reçu, boucle continue
+            print("Aucun message reçu... en attente.")
+            continue  # Pas de message, on continue la boucle
 
         if msg.error():
             if msg.error().code() == KafkaError._PARTITION_EOF:
-                # Fin de la partition, pas d'erreur bloquante
                 print(f"Fin de partition : {msg.topic()} [{msg.partition()}]")
             else:
-                # Erreur sérieuse
                 print(f"Erreur Kafka : {msg.error()}")
         else:
             # Message reçu et valide
             data = msg.value().decode('utf-8')
             key = msg.key().decode('utf-8') if msg.key() else "no-key"
 
-            print(f"Message reçu : clé={key}, valeur={data}")
+            print(f"📥 Message reçu : clé={key}, valeur={data}")
 
-            # ➡️ Ici tu peux envoyer vers HDFS, fichier, ou base de données
-            # Exemple simple : Écriture dans un fichier JSON (un fichier par message)
-            timestamp = int(time.time())
-            filename = f'air_quality_{timestamp}.json'
-            with open(filename, 'a', encoding='utf-8') as f:
-                json.dump(json.loads(data), f, ensure_ascii=False, indent=4)
-                f.write('\n')
-            print(f"Message sauvegardé dans {filename}")
+            # Ajoute le message à la liste
+            all_data.append(json.loads(data))
+            print(f"Total de messages reçus : {len(all_data)}")
+
+        # ➡️ Exécuter un flush après avoir reçu un certain nombre de messages (par ex. 10)
+        if len(all_data) >= 10:
+            filename = 'air_quality_data.json'
+
+            # Sauvegarde locale
+            with open(filename, 'w', encoding='utf-8') as f:
+                json.dump(all_data, f, ensure_ascii=False, indent=4)
+            print(f"✅ {len(all_data)} messages sauvegardés dans {filename}")
+
+            # Upload sur HDFS
+            try:
+                hdfs_path = f'/data/air_quality/{filename}'
+                
+                # ➡️ Écriture directe de l'ensemble des données
+                hdfs_client.write(
+                    hdfs_path,
+                    data=json.dumps(all_data, ensure_ascii=False, indent=4),
+                    overwrite=True,
+                    encoding='utf-8'
+                )
+
+                print(f"✅ Fichier {filename} uploadé sur HDFS à {hdfs_path} !")
+
+
+            except Exception as e:
+                print(f"❌ Erreur HDFS : {e}")
 
 except KeyboardInterrupt:
     print("Arrêt du consumer (CTRL+C)")
 
+    # Dernier flush si messages en attente
+    if all_data:
+        filename = 'air_quality_data_final.json'
+
+        with open(filename, 'w', encoding='utf-8') as f:
+            json.dump(all_data, f, ensure_ascii=False, indent=4)
+
+        try:
+            hdfs_path = f'/data/air_quality/{filename}'
+
+            hdfs_client.write(
+                hdfs_path,
+                data=json.dumps(all_data, ensure_ascii=False, indent=4),
+                overwrite=True,
+                encoding='utf-8'
+            )
+
+            print(f"✅ Derniers messages sauvegardés sur HDFS dans {hdfs_path}")
+
+        except Exception as e:
+            print(f"❌ Erreur finale HDFS : {e}")
+
 finally:
-    # Clean up
     consumer.close()
