@@ -25,7 +25,7 @@ services:
     environment:
       - CLUSTER_NAME=bigdata-cluster
       - CORE_CONF_fs_defaultFS=hdfs://hadoop-namenode:9000
-      - HDFS_CONF_dfs_replication=1
+      - HDFS_CONF_dfs_replication=2
       - HDFS_CONF_dfs_namenode_safemode_threshold_pct=0.0
     ports:
       - "9870:9870"
@@ -35,16 +35,26 @@ services:
     depends_on:
       - kafka
 
-  hadoop-datanode:
+  hadoop-datanode1:
     image: bde2020/hadoop-datanode:2.0.0-hadoop3.2.1-java8
     environment:
       - CLUSTER_NAME=bigdata-cluster
       - CORE_CONF_fs_defaultFS=hdfs://hadoop-namenode:9000
-      - HDFS_CONF_dfs_replication=1
+      - HDFS_CONF_dfs_replication=2
     ports:
       - "9864:9864"
-    volumes:
-      - ./datanode:/hadoop/dfs/data
+    depends_on:
+      hadoop-namenode:
+        condition: service_healthy
+
+  hadoop-datanode2:
+    image: bde2020/hadoop-datanode:2.0.0-hadoop3.2.1-java8
+    environment:
+      - CLUSTER_NAME=bigdata-cluster
+      - CORE_CONF_fs_defaultFS=hdfs://hadoop-namenode:9000
+      - HDFS_CONF_dfs_replication=2
+    ports:
+      - "9865:9865"
     depends_on:
       hadoop-namenode:
         condition: service_healthy
@@ -62,3 +72,28 @@ services:
       kafka:
         condition: service_healthy
 
+  # spark-master:
+  #   image: bde2020/spark-master:3.1.2-hadoop3.2
+  #   ports:
+  #     - "8080:8080"  # Web UI Spark Master
+  #     - "7077:7077"  # Port Spark interne
+  #   environment:
+  #     - SPARK_MASTER_HOST=spark-master
+  #   depends_on:
+  #     consumer:
+  #       condition: service_healthy
+
+  # spark-worker:
+  #   image: bde2020/spark-worker:3.1.2-hadoop3.2
+  #   environment:
+  #     - SPARK_MASTER=spark://spark-master:7077
+  #   depends_on:
+  #     - spark-master
+
+  spark-job:
+    build: ./spark-job
+    volumes:
+      - ./spark-job/resultat:/app/results
+    depends_on:
+      consumer:
+        condition: service_healthy
