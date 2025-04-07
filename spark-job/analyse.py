@@ -52,14 +52,14 @@ df_clusters = model.transform(df_features)
 
 # # 💾 Sauvegarde des résultats de clustering
 
-# df_clusters.show(truncate=False)
+df_clusters.show(truncate=False)
 
-# dataClusters = df_clusters.toPandas()
+dataClusters = df_clusters.toPandas()
 
 # # Sauvegarde des résultats de clustering et dataClusters dans un fichier JSON
 
 with open(os.path.join(output_dir, "dataClusters.json"), "w") as f:
-    df_clusters.to_json(f, orient="records")
+    dataClusters.to_json(f, orient="records")
 
 #df_clusters.select("features", "cluster").write.mode("overwrite").json(os.path.join(output_dir, "clusters"))
 

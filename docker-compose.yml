@@ -1,5 +1,3 @@
-
-
 services:
   zookeeper:
     image: wurstmeister/zookeeper:latest
@@ -18,67 +16,69 @@ services:
       KAFKA_HOST_NAME: kafka
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
     depends_on:
-      - zookeeper
-
-  hadoop-namenode:
-    image: bde2020/hadoop-namenode:2.0.0-hadoop3.2.1-java8
-    environment:
-      - CLUSTER_NAME=bigdata-cluster
-      - CORE_CONF_fs_defaultFS=hdfs://hadoop-namenode:9000
-      - HDFS_CONF_dfs_replication=2
-      - HDFS_CONF_dfs_namenode_safemode_threshold_pct=0.0
-    ports:
-      - "9870:9870"
-      - "9000:9000"
-    volumes:
-      - ./namenode:/hadoop/dfs/name
-    depends_on:
-      - kafka
-
-  hadoop-datanode1:
-    image: bde2020/hadoop-datanode:2.0.0-hadoop3.2.1-java8
-    environment:
-      - CLUSTER_NAME=bigdata-cluster
-      - CORE_CONF_fs_defaultFS=hdfs://hadoop-namenode:9000
-      - HDFS_CONF_dfs_replication=2
-    ports:
-      - "9864:9864"
-    depends_on:
-      hadoop-namenode:
+      zookeeper:
         condition: service_healthy
 
-  hadoop-datanode2:
-    image: bde2020/hadoop-datanode:2.0.0-hadoop3.2.1-java8
-    environment:
-      - CLUSTER_NAME=bigdata-cluster
-      - CORE_CONF_fs_defaultFS=hdfs://hadoop-namenode:9000
-      - HDFS_CONF_dfs_replication=2
-    ports:
-      - "9865:9865"
-    depends_on:
-      hadoop-namenode:
-        condition: service_healthy
+  # hadoop-namenode:
+  #   image: bde2020/hadoop-namenode:2.0.0-hadoop3.2.1-java8
+  #   environment:
+  #     - CLUSTER_NAME=bigdata-cluster
+  #     - CORE_CONF_fs_defaultFS=hdfs://hadoop-namenode:9000
+  #     - HDFS_CONF_dfs_replication=2
+  #     - HDFS_CONF_dfs_namenode_safemode_threshold_pct=0.0
+  #   ports:
+  #     - "9870:9870"
+  #     - "9000:9000"
+  #   volumes:
+  #     - ./namenode:/hadoop/dfs/name
+  #   depends_on:
+  #     - kafka
+
+  # hadoop-datanode1:
+  #   image: bde2020/hadoop-datanode:2.0.0-hadoop3.2.1-java8
+  #   environment:
+  #     - CLUSTER_NAME=bigdata-cluster
+  #     - CORE_CONF_fs_defaultFS=hdfs://hadoop-namenode:9000
+  #     - HDFS_CONF_dfs_replication=2
+  #   ports:
+  #     - "9864:9864"
+  #   depends_on:
+  #     hadoop-namenode:
+  #       condition: service_healthy
+
+  # hadoop-datanode2:
+  #   image: bde2020/hadoop-datanode:2.0.0-hadoop3.2.1-java8
+  #   environment:
+  #     - CLUSTER_NAME=bigdata-cluster
+  #     - CORE_CONF_fs_defaultFS=hdfs://hadoop-namenode:9000
+  #     - HDFS_CONF_dfs_replication=2
+  #   ports:
+  #     - "9865:9865"
+  #   depends_on:
+  #     hadoop-namenode:
+  #       condition: service_healthy
 
   producer:
     build: ./producer
     depends_on:
-      - kafka
-
-  consumer:
-    build: ./consumer
-    depends_on:
-      hadoop-namenode:
-        condition: service_healthy
       kafka:
         condition: service_healthy
 
-  spark-job:
-    build: ./spark-job
-    volumes:
-      - ./spark-job/resultat:/app/results
-    depends_on:
-      consumer:
-        condition: service_healthy
+  # consumer:
+  #   build: ./consumer
+  #   depends_on:
+  #     hadoop-namenode:
+  #       condition: service_healthy
+  #     kafka:
+  #       condition: service_healthy
+
+  # spark-job:
+  #   build: ./spark-job
+  #   volumes:
+  #     - ./spark-job/resultat:/app/results
+  #   depends_on:
+  #     consumer:
+  #       condition: service_healthy
 
   elasticsearch:
     image: docker.elastic.co/elasticsearch/elasticsearch:7.17.0
@@ -91,9 +91,6 @@ services:
       - "9200:9200"
     networks:
       - default
-    depends_on:
-      spark-job:
-        condition: service_healthy
 
   logstash:
     image: docker.elastic.co/logstash/logstash:7.17.0
@@ -101,11 +98,20 @@ services:
     volumes:
       - ./logstash/pipeline:/usr/share/logstash/pipeline
     ports:
-      - "5044:5044"   # Beats input (optionnel)
-      - "9600:9600"   # Monitoring Logstash
+      - "5044:5044" # Beats input (optionnel)
+      - "9600:9600" # Monitoring Logstash
     depends_on:
       - kafka
       - elasticsearch
     networks:
       - default
 
+  kibana:
+    image: docker.elastic.co/kibana/kibana:7.17.0
+    ports:
+      - "5601:5601"
+    environment:
+      - ELASTICSEARCH_HOSTS=http://elasticsearch:9200
+    depends_on:
+      elasticsearch:
+        condition: service_healthy
