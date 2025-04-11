@@ -50,13 +50,13 @@ kmeans = KMeans(k=3, seed=1, featuresCol="features", predictionCol="cluster")
 model = kmeans.fit(df_features)
 df_clusters = model.transform(df_features)
 
-# 💾 Sauvegarde des résultats de clustering
+# # 💾 Sauvegarde des résultats de clustering
 
 df_clusters.show(truncate=False)
 
-dataClusters = df_clusters.select("features", "cluster").toPandas()
+dataClusters = df_clusters.toPandas()
 
-# Sauvegarde des résultats de clustering et dataClusters dans un fichier JSON
+# # Sauvegarde des résultats de clustering et dataClusters dans un fichier JSON
 
 with open(os.path.join(output_dir, "dataClusters.json"), "w") as f:
     dataClusters.to_json(f, orient="records")

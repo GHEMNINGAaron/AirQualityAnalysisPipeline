@@ -13,9 +13,11 @@ def delivery_report(err, msg):
     else:
         print(f"Message envoyé : {msg.value()} à {msg.topic()} [{msg.partition()}]")
 
+
+
 # Fonction pour récupérer les données de l'API OpenAQ (mesures)
-def fetch_air_quality_data():
-    url = "https://api.openaq.org/v3/sensors/3917/measurements" 
+def fetch_air_quality_data(id):
+    url = f'https://api.openaq.org/v3/sensors/{id}/measurements?limit=5' 
     headers = {"X-API-Key": "2ef284aac25b9937ae7949ba18212470bc8e0160824873124aa1921c5086762e"} 
 
     try:
@@ -45,10 +47,12 @@ def send_to_kafka(topic, data):
     producer.flush()  # Assure que tous les messages sont envoyés
 
 # Exécution principale
+SENSOR_ID = [5561, 15370, 5566, 5567, 5569, 5568, 5572, 5574, 5573, 4275113, 5578, 5579, 5656, 5580, 5581, 5582, 4275139, 5609, 5622, 5583, 5614]
 
 topic = "air_quality"  # Nom du topic Kafka où envoyer les données
-data = fetch_air_quality_data()  # Récupère les données depuis l'API OpenAQ
-if data:
-    send_to_kafka(topic, data)  # Envoie les données à Kafka si elles sont récupérées
-else:
-    print("Aucune donnée récupérée.")  # Affiche un message si aucune donnée n'est récupérée
+for id in SENSOR_ID:
+    data = fetch_air_quality_data(id)  # Récupère les données depuis l'API OpenAQ
+    if data:
+        send_to_kafka(topic, data)  # Envoie les données à Kafka si elles sont récupérées
+    else:
+        print("Aucune donnée récupérée.")  # Affiche un message si aucune donnée n'est récupérée
